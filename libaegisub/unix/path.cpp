@@ -35,6 +35,14 @@ std::string home_dir() {
 
 	throw agi::EnvironmentError("Could not get home directory. Make sure HOME is set.");
 }
+
+std::string xdg_dir(const std::string &environment_variable,
+                    const std::string &fallback_directory)
+{
+	const char *env = getenv(environment_variable.c_str());
+	if (env && *env) return env;
+	return fallback_directory;
+}
 #endif
 }
 
@@ -42,8 +50,17 @@ namespace agi {
 void Path::FillPlatformSpecificPaths() {
 #ifndef __APPLE__
 	agi::fs::path home = home_dir();
-	SetToken("?user", home/".aegisub");
-	SetToken("?local", home/".aegisub");
+	agi::fs::path prev_dir = home/".aegisub";
+	if (!boost::filesystem::exists(prev_dir))
+	{
+		agi::fs::path xdg_config_home = xdg_dir("XDG_CONFIG_HOME", (home/".config").string());
+		agi::fs::path xdg_cache_home = xdg_dir("XDG_CACHE_HOME", (home/".cache").string());
+		SetToken("?user", xdg_config_home/"Aegisub");
+		SetToken("?local", xdg_cache_home/"Aegisub");
+	} else {
+		SetToken("?user", prev_dir);
+	    SetToken("?local", prev_dir);
+	}
 	SetToken("?data", P_DATA);
 	SetToken("?dictionary", "/usr/share/hunspell");
 #else
